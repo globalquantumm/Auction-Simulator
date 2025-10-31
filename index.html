@@ -1,0 +1,327 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSL Auction Simulator (USD Version)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #f3f4f6; }
+        .card { background-color: #1f2937; border: 1px solid #374151; border-radius: 1rem; }
+        .btn-primary { background-color: #3b82f6; transition: background-color 0.3s ease, transform 0.2s ease; }
+        .btn-primary:hover { background-color: #2563eb; transform: translateY(-2px); }
+        .btn-secondary { background-color: #4b5563; transition: background-color 0.3s ease; }
+        .btn-secondary:hover { background-color: #374151; }
+        .input-field { background-color: #374151; border: 1px solid #4b5563; color: #f3f4f6; }
+        .stat-card { background-color: #374151; }
+        .glow { animation: glow 1.5s ease-in-out infinite alternate; }
+        @keyframes glow {
+            from { text-shadow: 0 0 5px #2dd4bf, 0 0 10px #2dd4bf, 0 0 15px #2dd4bf; }
+            to { text-shadow: 0 0 10px #14b8a6, 0 0 20px #14b8a6, 0 0 30px #14b8a6; }
+        }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .blinking-text {
+            animation: blinker 1.2s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">MSL Auction Simulator</h1>
+            <p class="mt-4 text-lg text-gray-400">The infinite Win-Win model where only 'Time' and 'Participation' determine value.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Settings Panel -->
+            <div class="lg:col-span-1 card p-6 order-2 lg:order-1">
+                <h2 class="text-2xl font-semibold mb-6 border-b border-gray-600 pb-3">Auction Settings</h2>
+                <div class="space-y-5">
+                    <div>
+                        <label for="startPrice" class="block text-sm font-medium text-gray-300">Start Price ($)</label>
+                        <input type="number" id="startPrice" class="mt-1 block w-full rounded-md input-field p-2" value="100.00" step="0.01">
+                    </div>
+                    <div>
+                        <label for="minPrice" class="block text-sm font-medium text-gray-300">Minimum Price ($)</label>
+                        <input type="number" id="minPrice" class="mt-1 block w-full rounded-md input-field p-2" value="20.00" step="0.01">
+                    </div>
+                    <div>
+                        <label for="participantGoal" class="block text-sm font-medium text-gray-300">Participant Goal</label>
+                        <input type="number" id="participantGoal" class="mt-1 block w-full rounded-md input-field p-2" value="100">
+                    </div>
+                    <div>
+                        <label for="auctionDuration" class="block text-sm font-medium text-gray-300">Auction Duration (sec)</label>
+                        <input type="number" id="auctionDuration" class="mt-1 block w-full rounded-md input-field p-2" value="120">
+                    </div>
+                </div>
+                <div class="mt-8 flex flex-col space-y-3">
+                    <button id="startAuction" class="w-full text-white font-bold py-3 px-4 rounded-lg btn-primary text-lg">
+                        Start Auction
+                    </button>
+                    <button id="resetAuction" class="w-full text-white font-bold py-3 px-4 rounded-lg btn-secondary">
+                        Reset
+                    </button>
+                </div>
+                 <div id="auctionStatus" class="mt-6 text-center text-lg font-medium p-3 bg-gray-800 rounded-lg transition-all duration-300">
+                    Waiting...
+                </div>
+            </div>
+
+            <!-- Main Display Panel -->
+            <div class="lg:col-span-2 card p-6 order-1 lg:order-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="stat-card p-4 rounded-lg border-l-4 border-blue-500">
+                        <h3 class="text-sm font-medium text-gray-400">Current Participants</h3>
+                        <p id="currentParticipants" class="text-3xl font-bold">0</p>
+                    </div>
+                    <div class="stat-card p-4 rounded-lg border-l-4 border-yellow-500">
+                        <h3 class="text-sm font-medium text-gray-400">Time Left</h3>
+                        <p id="timer" class="text-3xl font-bold">0s</p>
+                    </div>
+                     <div class="stat-card p-4 rounded-lg border-l-4 border-teal-500">
+                        <h3 class="text-sm font-medium text-gray-400">Current Price</h3>
+                        <p id="currentPrice" class="text-3xl font-bold">$0.00</p>
+                    </div>
+                </div>
+
+                <div class="mb-6 h-64 md:h-80">
+                    <canvas id="priceChart"></canvas>
+                </div>
+                
+                <button id="joinAuction" class="w-full text-white font-bold py-4 px-6 rounded-lg btn-primary text-xl disabled:opacity-50 disabled:cursor-not-allowed pulse" disabled>
+                    Join Auction
+                </button>
+                
+                <div id="urgencyMessage" class="mt-4 text-center text-lg text-yellow-400 font-semibold hidden h-8">
+                </div>
+
+                <div id="finalResult" class="mt-6 text-center p-4 bg-gray-800 rounded-lg hidden">
+                    <h3 class="text-xl font-bold text-teal-400">Auction Ended!</h3>
+                    <p class="text-lg text-gray-300 mt-2"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // DOM Elements
+        const startPriceEl = document.getElementById('startPrice');
+        const minPriceEl = document.getElementById('minPrice');
+        const participantGoalEl = document.getElementById('participantGoal');
+        const auctionDurationEl = document.getElementById('auctionDuration');
+        const startAuctionBtn = document.getElementById('startAuction');
+        const resetAuctionBtn = document.getElementById('resetAuction');
+        const joinAuctionBtn = document.getElementById('joinAuction');
+        const currentParticipantsEl = document.getElementById('currentParticipants');
+        const currentPriceEl = document.getElementById('currentPrice');
+        const timerEl = document.getElementById('timer');
+        const auctionStatusEl = document.getElementById('auctionStatus');
+        const finalResultEl = document.getElementById('finalResult');
+        const urgencyMessageEl = document.getElementById('urgencyMessage');
+        const ctx = document.getElementById('priceChart').getContext('2d');
+
+        // State variables
+        let chart;
+        let auctionState = { running: false, goalMet: false, startPrice: 0, minPrice: 0, participantGoal: 0, duration: 0, currentParticipants: 0, timeLeft: 0, timerInterval: null, participantInterval: null };
+
+        function formatCurrency(value) {
+            return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        function calculatePrice() {
+            const { startPrice, minPrice, participantGoal, currentParticipants, goalMet } = auctionState;
+            if (goalMet) return minPrice;
+            if (participantGoal <= 0) return startPrice;
+            const progress = Math.min(currentParticipants / participantGoal, 1);
+            const priceRange = startPrice - minPrice;
+            const price = minPrice + priceRange * Math.pow(1 - progress, 3);
+            return price;
+        }
+
+        function updateDisplay() {
+            const currentPrice = calculatePrice();
+            currentParticipantsEl.textContent = auctionState.currentParticipants.toLocaleString();
+            currentPriceEl.textContent = formatCurrency(currentPrice);
+            timerEl.textContent = `${auctionState.timeLeft}s`;
+            if (chart) {
+                chart.data.datasets[1].data[0].x = auctionState.currentParticipants;
+                chart.data.datasets[1].data[0].y = currentPrice;
+                chart.update("none");
+            }
+        }
+
+        function updateUrgencyMessage() {
+            const minutes = Math.floor(auctionState.timeLeft / 60);
+            const seconds = auctionState.timeLeft % 60;
+            urgencyMessageEl.textContent = `Auction ends in ${minutes}m ${seconds}s. Hurry up!`;
+        }
+
+        function endAuction(reason) {
+            clearInterval(auctionState.timerInterval);
+            clearTimeout(auctionState.participantInterval);
+            auctionState.running = false;
+            startAuctionBtn.disabled = false;
+            joinAuctionBtn.disabled = true;
+            joinAuctionBtn.classList.remove("pulse");
+            urgencyMessageEl.classList.add("hidden");
+            urgencyMessageEl.classList.remove("blinking-text");
+
+            const finalPrice = calculatePrice();
+            auctionStatusEl.textContent = `Ended: ${reason}`;
+            auctionStatusEl.className = "mt-6 text-center text-lg font-medium p-3 bg-gray-800 rounded-lg text-yellow-400 transition-all duration-300";
+            finalResultEl.classList.remove("hidden");
+            const priceDropPercent = auctionState.startPrice > 0 ? (((auctionState.startPrice - finalPrice) / auctionState.startPrice) * 100).toFixed(1) : 0;
+            finalResultEl.querySelector("p").textContent = `Ended with ${auctionState.currentParticipants.toLocaleString()} participants at a final price of ${formatCurrency(finalPrice)}! (${priceDropPercent}% drop from start price)`;
+        }
+
+        function startTimer() {
+            auctionState.timeLeft = auctionState.duration;
+            updateUrgencyMessage();
+            auctionState.timerInterval = setInterval(() => {
+                auctionState.timeLeft--;
+                if (auctionState.timeLeft < 0) auctionState.timeLeft = 0;
+                updateDisplay();
+                updateUrgencyMessage();
+                if (auctionState.timeLeft <= 0) endAuction("Time's Up");
+            }, 1000);
+        }
+
+        function simulateParticipants() {
+            const randomInterval = Math.random() * 600 + 150;
+            auctionState.participantInterval = setTimeout(() => {
+                if (auctionState.running) {
+                    handleJoinAuction();
+                    simulateParticipants();
+                }
+            }, randomInterval);
+        }
+
+        function checkGoalMet() {
+            if (!auctionState.goalMet && auctionState.currentParticipants >= auctionState.participantGoal) {
+                auctionState.goalMet = true;
+                auctionStatusEl.textContent = "Minimum Price Reached! Overbooking available!";
+                auctionStatusEl.className = "mt-6 text-center text-lg font-medium p-3 bg-teal-800 rounded-lg text-teal-300 transition-all duration-300 glow";
+                currentPriceEl.classList.add("glow");
+            }
+        }
+
+        function createChart() {
+            if (chart) chart.destroy();
+            const { startPrice, minPrice, participantGoal } = auctionState;
+            const labels = Array.from({ length: 11 }, (_, i) => Math.round(participantGoal * (i / 10)));
+            const priceData = labels.map(p => {
+                if (participantGoal <= 0) return startPrice;
+                const progress = Math.min(p / participantGoal, 1);
+                return minPrice + (startPrice - minPrice) * Math.pow(1 - progress, 3);
+            });
+
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Projected Price Curve", data: priceData, borderColor: "rgba(59, 130, 246, 0.6)", backgroundColor: "rgba(59, 130, 246, 0.1)", fill: true, tension: 0.4, pointRadius: 0
+                    }, {
+                        label: "Current Position", data: [{ x: 0, y: startPrice }], borderColor: "#f87171", backgroundColor: "#ef4444", pointRadius: 8, pointHoverRadius: 10, type: "scatter"
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { type: "linear", title: { display: true, text: "Participants", color: "#9ca3af" }, ticks: { color: "#9ca3af" }, grid: { color: "rgba(255, 255, 255, 0.1)" } },
+                        y: { title: { display: true, text: "Price (USD)", color: "#9ca3af" }, ticks: { color: "#9ca3af", callback: v => formatCurrency(v) }, grid: { color: "rgba(255, 255, 255, 0.1)" } }
+                    },
+                    plugins: { legend: { labels: { color: "#d1d5db" } } },
+                    animation: { duration: 0 }
+                }
+            });
+        }
+        
+        function handleStartAuction() {
+            if (auctionState.running) return;
+            handleResetAuction(false);
+            auctionState = {
+                ...auctionState, running: true,
+                startPrice: parseFloat(startPriceEl.value) || 100.00,
+                minPrice: parseFloat(minPriceEl.value) || 20.00,
+                participantGoal: parseInt(participantGoalEl.value) || 100,
+                duration: parseInt(auctionDurationEl.value) || 120,
+            };
+
+            startAuctionBtn.disabled = true;
+            joinAuctionBtn.disabled = false;
+            joinAuctionBtn.classList.add("pulse");
+            urgencyMessageEl.classList.remove("hidden");
+            urgencyMessageEl.classList.add("blinking-text");
+            auctionStatusEl.textContent = "Auction in Progress...";
+            auctionStatusEl.className = "mt-6 text-center text-lg font-medium p-3 bg-gray-800 rounded-lg text-blue-300 transition-all duration-300";
+            finalResultEl.classList.add("hidden");
+            currentPriceEl.classList.remove("glow");
+            createChart();
+            startTimer();
+            updateDisplay();
+            simulateParticipants();
+        }
+
+        function handleJoinAuction() {
+            if (auctionState.running) {
+                auctionState.currentParticipants++;
+                checkGoalMet();
+                updateDisplay();
+            }
+        }
+
+        function handleResetAuction(fullReset = true) {
+            clearInterval(auctionState.timerInterval);
+            clearTimeout(auctionState.participantInterval);
+            auctionState = { ...auctionState, running: false, goalMet: false, currentParticipants: 0 };
+
+            if (fullReset) {
+                startPriceEl.value = "100.00";
+                minPriceEl.value = "20.00";
+                participantGoalEl.value = 100;
+                auctionDurationEl.value = 120;
+            }
+            
+            auctionState.duration = parseInt(auctionDurationEl.value) || 120;
+            auctionState.timeLeft = auctionState.duration;
+            
+            startAuctionBtn.disabled = false;
+            joinAuctionBtn.disabled = true;
+            joinAuctionBtn.classList.remove("pulse");
+            urgencyMessageEl.classList.add("hidden");
+            urgencyMessageEl.classList.remove("blinking-text");
+            auctionStatusEl.textContent = "Waiting...";
+            auctionStatusEl.className = "mt-6 text-center text-lg font-medium p-3 bg-gray-800 rounded-lg text-gray-400 transition-all duration-300";
+            finalResultEl.classList.add("hidden");
+            currentPriceEl.classList.remove("glow");
+            currentPriceEl.textContent = formatCurrency(parseFloat(startPriceEl.value) || 100);
+            
+            const startPrice = parseFloat(startPriceEl.value) || 100;
+            if (chart) {
+                chart.data.datasets[1].data[0] = { x: 0, y: startPrice };
+                chart.update("none");
+            }
+            updateDisplay();
+        }
+
+        function initialize() {
+            startAuctionBtn.addEventListener("click", handleStartAuction);
+            joinAuctionBtn.addEventListener("click", handleJoinAuction);
+            resetAuctionBtn.addEventListener("click", () => handleResetAuction(true));
+            handleResetAuction();
+        }
+        window.onload = initialize;
+    </script>
+</body>
+</html>
+
+
