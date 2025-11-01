@@ -32,7 +32,12 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<!-- [ MSL 수정 1 ]
+     휴대폰에서 헤드라인이 잘리는 문제를 해결하기 위해,
+     flex, items-center, justify-center, min-h-screen 앞에 'md:'(데스크탑 전용)를 붙였습니다.
+     이제 휴대폰에서는 중앙 정렬이 풀리고, 헤드라인부터 보이게 됩니다.
+-->
+<body class="p-4 md:flex md:items-center md:justify-center md:min-h-screen">
     <div class="w-full max-w-6xl mx-auto">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl">MSL Auction Simulator</h1>
@@ -91,7 +96,12 @@
                     </div>
                 </div>
 
-                <div class="mb-6 h-64 md:h-80">
+                <!-- [ MSL 수정 2 ]
+                     휴대폰에서 그래프가 보이지 않는 문제를 해결하기 위해,
+                     'h-64' (고정 높이)를 'aspect-video' (16:9 비율)로 변경했습니다.
+                     'md:' (데스크탑)에서는 원래의 고정 높이 'md:h-80'을 유지하고 'aspect-video'를 껐습니다.
+                -->
+                <div class="mb-6 w-full aspect-video md:aspect-auto md:h-80">
                     <canvas id="priceChart"></canvas>
                 </div>
                 
@@ -136,14 +146,27 @@
             return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
+        /**
+         * calculates the current auction price based on participant progress.
+         * This function is the core engine of the MSL Protocol.
+         * (태일님이 보내주신 코드 스니펫 함수입니다. 원본과 동일합니다.)
+         */
         function calculatePrice() {
             const { startPrice, minPrice, participantGoal, currentParticipants, goalMet } = auctionState;
-            if (goalMet) return minPrice;
+            // Overbooking
+            if (goalMet || currentParticipants >= participantGoal) {
+                 auctionState.goalMet = true; // Ensure state is set
+                 return minPrice;
+            }
             if (participantGoal <= 0) return startPrice;
+            
             const progress = Math.min(currentParticipants / participantGoal, 1);
             const priceRange = startPrice - minPrice;
+            // Cubic easing curve: (1 - progress)^3
             const price = minPrice + priceRange * Math.pow(1 - progress, 3);
-            return price;
+            
+            // Rounding added here from original snippet for consistency in simulation
+            return Math.round(price * 100) / 100;
         }
 
         function updateDisplay() {
@@ -303,25 +326,26 @@
             auctionStatusEl.className = "mt-6 text-center text-lg font-medium p-3 bg-gray-800 rounded-lg text-gray-400 transition-all duration-300";
             finalResultEl.classList.add("hidden");
             currentPriceEl.classList.remove("glow");
-            currentPriceEl.textContent = formatCurrency(parseFloat(startPriceEl.value) || 100);
             
             const startPrice = parseFloat(startPriceEl.value) || 100;
-            if (chart) {
-                chart.data.datasets[1].data[0] = { x: 0, y: startPrice };
-                chart.update("none");
-            }
-            updateDisplay();
+            currentPriceEl.textContent = formatCurrency(startPrice);
+            
+            // Re-create chart on reset to reflect potential settings changes
+            auctionState.startPrice = startPrice;
+            auctionState.minPrice = parseFloat(minPriceEl.value) || 20.00;
+            auctionState.participantGoal = parseInt(participantGoalEl.value) || 100;
+            createChart(); 
+            
+            updateDisplay(); // Ensure display is consistent with reset state
         }
 
         function initialize() {
             startAuctionBtn.addEventListener("click", handleStartAuction);
             joinAuctionBtn.addEventListener("click", handleJoinAuction);
             resetAuctionBtn.addEventListener("click", () => handleResetAuction(true));
-            handleResetAuction();
+            handleResetAuction(); // Initial setup
         }
         window.onload = initialize;
     </script>
 </body>
 </html>
-
-
